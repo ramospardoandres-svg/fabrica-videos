@@ -1,0 +1,53 @@
+name: Fabrica de Videos IA
+
+on:
+  schedule:
+    # Crea un video solo a las 11:00, 16:00 y 20:00 (Hora de Chile)
+    - cron: '0 14,19,23 * * *'
+  workflow_dispatch:
+
+jobs:
+  crear-video:
+    runs-on: ubuntu-latest
+    permissions:
+      contents: write
+
+    steps:
+      - name: 1. Leer archivos
+        uses: actions/checkout@v4
+
+      - name: 2. Instalar motor de video FFmpeg
+        run: |
+          sudo apt-get update
+          sudo apt-get install -y ffmpeg fonts-dejavu-core
+
+      - name: 3. Preparar Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: '3.11'
+          cache: 'pip'
+
+      - name: 4. Instalar herramientas
+        run: pip install -r requirements.txt
+
+      - name: 5. Crear el Video con Inteligencia Artificial
+        env:
+          GEMINI_API_KEY: ${{ secrets.GEMINI_API_KEY }}
+        run: python fabrica_videos.py
+
+      - name: 6. Empaquetar Video Listo para Descargar
+        uses: actions/upload-artifact@v4
+        with:
+          name: Paquete-Video-Numero-${{ github.run_number }}
+          path: |
+            VIDEO_LISTO.mp4
+            COPIAR_TITULO_Y_DESCRIPCION.txt
+          retention-days: 14
+
+      - name: 7. Guardar memoria para no repetir temas
+        run: |
+          git config --local user.email "bot@github.com"
+          git config --local user.name "VideoBot"
+          git add historial.db
+          git diff --staged --quiet || git commit -m "Guardar tema en memoria"
+          git push
